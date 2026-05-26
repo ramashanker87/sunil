@@ -97,7 +97,7 @@ SSH into each EC2 instance.
 ## Connect to EC2
 
 ```bash
-ssh -i mykey.pem ec2-user@<EC2-PUBLIC-IP>
+ssh -i sunil.pem ec2-user@18.208.216.246
 ```
 
 ## Install Apache
@@ -112,7 +112,10 @@ sudo systemctl enable httpd
 ## Test Apache
 
 ```bash
-echo "<h1>Blue Server</h1>" | sudo tee /var/www/html/index.html
+echo "<h1>Blue Server-1</h1>" | sudo tee /var/www/html/index.html
+echo "<h1>Blue Server-2</h1>" | sudo tee /var/www/html/index.html
+echo "<h1>green Server-3</h1>" | sudo tee /var/www/html/index.html
+echo "<h1>green Server-4</h1>" | sudo tee /var/www/html/index.html
 ```
 
 Open browser:

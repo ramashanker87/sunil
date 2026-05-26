@@ -156,7 +156,7 @@ aws codecommit create-repository \
 --repository-name DevOpsRepo \
 --repository-description "DevOps Training Repository" --profile devops
 ```
-
+git clone https://git-codecommit.us-east-1.amazonaws.com/v1/repos/DevOpsRepo-sunil
 ---
 
 # Part 5: Clone Repository
