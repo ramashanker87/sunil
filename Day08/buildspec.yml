@@ -1,0 +1,29 @@
+```yaml
+version: 0.2
+
+env:
+  variables:
+    SONAR_HOST_URL: "http://3.84.250.143:9000/"
+
+phases:
+  install:
+    commands:
+      - echo Installing SonarScanner
+      - yum install -y unzip wget
+      - wget https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip
+      - unzip sonar-scanner-cli-5.0.1.3006-linux.zip
+      - export PATH=$PATH:$CODEBUILD_SRC_DIR/sonar-scanner-5.0.1.3006-linux/bin
+
+  pre_build:
+    commands:
+      - echo Checking files
+      - ls -la
+
+  build:
+    commands:
+      - echo Running SonarQube scan
+      - sonar-scanner -Dsonar.projectKey=sonarqube-demo -Dsonar.projectName=sonarqube-demo -Dsonar.sources=. -Dsonar.host.url=$SONAR_HOST_URL -Dsonar.token=$SONAR_TOKEN
+  post_build:
+    commands:
+      - echo Build and SonarQube scan completed
+```

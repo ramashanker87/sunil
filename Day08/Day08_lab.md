@@ -184,6 +184,12 @@ Repository Name:
 
 ```text
 sonarqube-demo
+
+aws sts get-caller-identity --profile devops
+git config --global credential.helper '!aws codecommit credential-helper $@'
+git config --global credential.UseHttpPath true
+export AWS_PROFILE=devops
+git clone https://git-codecommit.us-east-1.amazonaws.com/v1/repos/sonarqube-demo-rama
 ```
 
 ---
@@ -199,6 +205,15 @@ Create:
 ```
 
 ---
+Step 8: Add SonarQube Project File
+
+    Create sonar-project.properties:
+
+    sonar.projectKey=sonarqube-demo-rama
+    sonar.projectName=sonarqube-demo-rama
+    sonar.projectVersion=1.0
+    sonar.sources=.
+    sonar.exclusions=**/node_modules/**,**/.git/**
 
 # Step 9 – Create buildspec.yml
 
@@ -207,21 +222,35 @@ Create:
 ```yaml
 version: 0.2
 
+env:
+  variables:
+    SONAR_HOST_URL: "http://3.84.250.143:9000/"
+
 phases:
   install:
     commands:
-      - echo Installing dependencies
+      - echo Installing SonarScanner
+      - yum install -y unzip wget
+      - wget https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip
+      - unzip sonar-scanner-cli-5.0.1.3006-linux.zip
+      - export PATH=$PATH:$CODEBUILD_SRC_DIR/sonar-scanner-5.0.1.3006-linux/bin
+
+  pre_build:
+    commands:
+      - echo Checking files
+      - ls -la
 
   build:
     commands:
-      - echo Running automated tests
-      - echo Running quality validation
-
-artifacts:
-  files:
-    - '**/*'
+      - echo Running SonarQube scan
+      - sonar-scanner -Dsonar.projectKey=sonarqube-demo -Dsonar.projectName=sonarqube-demo -Dsonar.sources=. -Dsonar.host.url=$SONAR_HOST_URL -Dsonar.token=$SONAR_TOKEN
+  post_build:
+    commands:
+      - echo Build and SonarQube scan completed
 ```
+    Replace:
 
+    <SONAR_PUBLIC_IP>
 ---
 
 # Step 10 – Push Code to GitHub
@@ -233,7 +262,7 @@ git add .
 
 git commit -m "Initial commit"
 
-git push origin main
+git push origin master
 ```
 
 ---
@@ -308,8 +337,13 @@ Artifacts:
 ```text
 No Artifacts
 ```
+### Step 11: Add Environment Variable
+    Generated in step 16
+    In CodeBuild environment variables, add:
 
-Create project.
+    Name	Value	Type
+    SONAR_TOKEN	your SonarQube token	Plaintext or Secrets Manager
+    Create project.
 
 ---
 
