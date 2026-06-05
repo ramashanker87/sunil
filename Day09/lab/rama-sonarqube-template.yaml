@@ -1,0 +1,130 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: SonarQube on EC2 with CodeCommit and CodeBuild
+
+Parameters:
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: Existing EC2 key pair for SSH
+
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+
+  SubnetId:
+    Type: AWS::EC2::Subnet::Id
+
+  AllowedSSHIp:
+    Type: String
+    Default: 0.0.0.0/0
+    Description: Use your IP range for SSH, example 1.2.3.4/32
+
+  SonarToken:
+    Type: String
+    NoEcho: true
+    Default: ""
+    Description: SonarQube token. Can be updated later after token generation.
+
+Resources:
+  SonarSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow SSH and SonarQube UI
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref AllowedSSHIp
+        - IpProtocol: tcp
+          FromPort: 9000
+          ToPort: 9000
+          CidrIp: 0.0.0.0/0
+
+  SonarInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: "{{resolve:ssm:/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2}}"
+      InstanceType: t2.medium
+      KeyName: !Ref KeyName
+      SubnetId: !Ref SubnetId
+      SecurityGroupIds:
+        - !Ref SonarSecurityGroup
+      Tags:
+        - Key: Name
+          Value: sonarqube-server
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          yum update -y
+          yum install docker -y
+          systemctl start docker
+          systemctl enable docker
+          usermod -aG docker ec2-user
+          docker run -d --name sonarqube -p 9000:9000 sonarqube:lts
+
+  CodeCommitRepo:
+    Type: AWS::CodeCommit::Repository
+    Properties:
+      RepositoryName: sonarqube-demo-rama
+      RepositoryDescription: SonarQube demo application repository
+
+  CodeBuildRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: Day08_CodeBuild_Role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+        - arn:aws:iam::aws:policy/CloudWatchLogsFullAccess
+      Policies:
+        - PolicyName: CodeCommitAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - codecommit:GitPull
+                Resource: !GetAtt CodeCommitRepo.Arn
+
+  CodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: sonarqube-build
+      ServiceRole: !GetAtt CodeBuildRole.Arn
+      Artifacts:
+        Type: NO_ARTIFACTS
+      Source:
+        Type: CODECOMMIT
+        Location: !GetAtt CodeCommitRepo.CloneUrlHttp
+        BuildSpec: buildspec.yml
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_MEDIUM
+        Image: aws/codebuild/amazonlinux2-x86_64-standard:5.0
+        EnvironmentVariables:
+          - Name: SONAR_HOST_URL
+            Value: !Sub "http://${SonarInstance.PublicIp}:9000"
+          - Name: SONAR_TOKEN
+            Value: !Ref SonarToken
+      TimeoutInMinutes: 30
+
+Outputs:
+  SonarQubeURL:
+    Description: SonarQube URL
+    Value: !Sub "http://${SonarInstance.PublicIp}:9000"
+
+  SonarPublicIP:
+    Description: EC2 public IP
+    Value: !GetAtt SonarInstance.PublicIp
+
+  RepositoryCloneUrl:
+    Description: CodeCommit clone URL
+    Value: !GetAtt CodeCommitRepo.CloneUrlHttp
+
+  CodeBuildProject:
+    Value: !Ref CodeBuildProject

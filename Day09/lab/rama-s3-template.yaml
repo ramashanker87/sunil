@@ -1,0 +1,12 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Create an S3 bucket
+
+Resources:
+  RamaS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: rama-day09-bucket-12345
+
+Outputs:
+  BucketName:
+    Value: !Ref RamaS3Bucket
