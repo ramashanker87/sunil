@@ -1,0 +1,141 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Day17 EKS Lab - Create EKS cluster, IAM roles, managed node group, and optional ECR repository.
+
+Parameters:
+  ClusterName:
+    Type: String
+    Default: sunil-eks-cluster
+
+  NodeGroupName:
+    Type: String
+    Default: sunil-eks-nodegroup
+
+  EcrRepositoryName:
+    Type: String
+    Default: sunil-ecr
+
+  CreateEcrRepository:
+    Type: String
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Description: Set true only if the ECR repository does not already exist.
+
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: Use your default VPC or lab VPC.
+
+  SubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Select at least two subnets in different AZs, for example us-east-1a and us-east-1b.
+
+  NodeInstanceType:
+    Type: String
+    Default: t3.medium
+
+  NodeDiskSize:
+    Type: Number
+    Default: 20
+
+  NodeDesiredSize:
+    Type: Number
+    Default: 2
+
+  NodeMinSize:
+    Type: Number
+    Default: 1
+
+  NodeMaxSize:
+    Type: Number
+    Default: 3
+
+Conditions:
+  ShouldCreateEcrRepository: !Equals [!Ref CreateEcrRepository, 'true']
+
+Resources:
+  EcrRepository:
+    Type: AWS::ECR::Repository
+    Condition: ShouldCreateEcrRepository
+    Properties:
+      RepositoryName: !Ref EcrRepositoryName
+      ImageScanningConfiguration:
+        ScanOnPush: true
+
+  EksClusterRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: sunil-eksClusterRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: eks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonEKSClusterPolicy
+
+  EksNodeGroupRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: sunil-eksNodeGroupRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+        - arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
+
+  EksCluster:
+    Type: AWS::EKS::Cluster
+    Properties:
+      Name: !Ref ClusterName
+      RoleArn: !GetAtt EksClusterRole.Arn
+      ResourcesVpcConfig:
+        SubnetIds: !Ref SubnetIds
+        EndpointPublicAccess: true
+        EndpointPrivateAccess: false
+      AccessConfig:
+        AuthenticationMode: API_AND_CONFIG_MAP
+
+  EksNodeGroup:
+    Type: AWS::EKS::Nodegroup
+    DependsOn: EksCluster
+    Properties:
+      ClusterName: !Ref EksCluster
+      NodegroupName: !Ref NodeGroupName
+      NodeRole: !GetAtt EksNodeGroupRole.Arn
+      Subnets: !Ref SubnetIds
+      InstanceTypes:
+        - !Ref NodeInstanceType
+      DiskSize: !Ref NodeDiskSize
+      ScalingConfig:
+        DesiredSize: !Ref NodeDesiredSize
+        MinSize: !Ref NodeMinSize
+        MaxSize: !Ref NodeMaxSize
+
+Outputs:
+  ClusterName:
+    Value: !Ref EksCluster
+
+  NodeGroupName:
+    Value: !Ref EksNodeGroup
+
+  EksClusterRoleArn:
+    Value: !GetAtt EksClusterRole.Arn
+
+  EksNodeGroupRoleArn:
+    Value: !GetAtt EksNodeGroupRole.Arn
+
+  UpdateKubeconfigCommand:
+    Value: !Sub aws eks update-kubeconfig --region ${AWS::Region} --name ${ClusterName} --profile devops
+
+  ImageUri:
+    Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${EcrRepositoryName}:v2
