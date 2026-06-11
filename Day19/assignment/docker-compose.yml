@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  ecs-app:
+    build: ./ecs-app
+    environment:
+      - PARTICIPANT_NAME=sunil
+
+  eks-app:
+    build: ./eks-app
+    environment:
+      - PARTICIPANT_NAME=sunil

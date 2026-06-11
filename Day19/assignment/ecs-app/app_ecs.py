@@ -1,1 +1,4 @@
-print("hello sunil from ecs application) 
+import os
+
+participant_name = os.environ.get("PARTICIPANT_NAME", "sunil")
+print(f"Hello {participant_name} from ECS Application")
