@@ -28,14 +28,14 @@ Replace the image URI and region as required.
 
 ```bash
 aws cloudformation deploy \
-  --stack-name rama-ecs-fargate \
-  --template-file Day16_ecs_fargate_lab.yml \
+  --stack-name sunil-ecs-fargate \
+  --template-file sunil-ecs-cluster.yml \
   --capabilities CAPABILITY_NAMED_IAM \
   --parameter-overrides \
       VpcId=vpc-0ca5b92e540035af6 \
       PublicSubnet1=subnet-02e4c0c0d48c6abe0 \
       PublicSubnet2=subnet-0fedff33455ac1bd6 \
-      ECRImage=386757865964.dkr.ecr.us-east-1.amazonaws.com/rama-ecr:v2 \
+      ECRImage=386757865964.dkr.ecr.us-east-1.amazonaws.com/sunil-ecs:v2 \
   --profile devops
 ```
 
@@ -45,7 +45,7 @@ aws cloudformation deploy \
 
 ```bash
 aws cloudformation describe-stacks \
-  --stack-name rama-ecs-fargate \
+  --stack-name sunil-ecs-fargate \
   --query "Stacks[0].Outputs" \
   --profile devops
 ```

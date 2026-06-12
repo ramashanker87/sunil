@@ -72,6 +72,8 @@ This confirms that the AWS CLI is authenticated and shows which AWS account will
 Create an EKS cluster with one managed node group.
 
 ```bash
+export AWS_REGION=us-east-1
+export CLUSTER_NAME=sunil
 eksctl create cluster \
   --name $CLUSTER_NAME \
   --region $AWS_REGION \

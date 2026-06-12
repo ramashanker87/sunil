@@ -129,7 +129,7 @@ Listener:
 HTTP 80
 
 Target Type:
-IP
+IP:
 
 Create Load Balancer
 

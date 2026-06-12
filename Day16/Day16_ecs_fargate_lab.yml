@@ -15,14 +15,14 @@ Parameters:
   ECRImage:
     Type: String
     Description: ECR image URI
-    Default: 386757865964.dkr.ecr.us-east-1.amazonaws.com/rama-ecr:v2
+    Default: 386757865964.dkr.ecr.us-east-1.amazonaws.com/sunil-ecr:v2
 
 Resources:
 
   ECSCluster:
     Type: AWS::ECS::Cluster
     Properties:
-      ClusterName: rama-fargate-cluster
+      ClusterName:sunil-fargate-cluster
 
   ALBSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -51,7 +51,7 @@ Resources:
   ApplicationLoadBalancer:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
-      Name: rama-alb
+      Name:sunil-alb
       Scheme: internet-facing
       Type: application
 
@@ -65,7 +65,7 @@ Resources:
   TargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
-      Name: rama-targets
+      Name:sunil-targets
       Port: 8080
       Protocol: HTTP
       TargetType: ip
@@ -88,7 +88,7 @@ Resources:
   ECSExecutionRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: ecsTaskExecutionRoleRama
+      RoleName: ecsTaskExecutionRolesunil
 
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
@@ -109,7 +109,7 @@ Resources:
     Type: AWS::ECS::TaskDefinition
     Properties:
 
-      Family: rama-app
+      Family:sunil-app
 
       RequiresCompatibilities:
         - FARGATE
@@ -122,7 +122,7 @@ Resources:
       ExecutionRoleArn: !GetAtt ECSExecutionRole.Arn
 
       ContainerDefinitions:
-        - Name: rama-app
+        - Name:sunil-app
 
           Image: !Ref ECRImage
 
@@ -133,7 +133,7 @@ Resources:
 
           Environment:
             - Name: APP_MESSAGE1
-              Value: Rama from ECS Fargate
+              Value:sunil from ECS Fargate
             - Name: APP_MESSAGE2
               Value: Testing Enviroment
 
@@ -144,7 +144,7 @@ Resources:
 
     Properties:
 
-      ServiceName: Rama-service
+      ServiceName:sunil-service
 
       Cluster: !Ref ECSCluster
 
@@ -166,7 +166,7 @@ Resources:
             - !Ref PublicSubnet2
 
       LoadBalancers:
-        - ContainerName: rama-app
+        - ContainerName:sunil-app
           ContainerPort: 8080
           TargetGroupArn: !Ref TargetGroup
 
