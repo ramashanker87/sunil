@@ -31,6 +31,27 @@ By the end of this lab, you will understand:
 
 You need the following installed and configured on your workstation or AWS CloudShell:
 
+## Install ekctl
+
+```bash
+ARCH=amd64
+
+curl -sLO "https://github.com/eksctl-io/eksctl/releases/latest/download/eksctl_Linux_${ARCH}.tar.gz"
+
+tar -xzf eksctl_Linux_${ARCH}.tar.gz
+
+sudo mv eksctl /usr/local/bin/
+
+eksctl version
+```
+
+## Install Helm
+
+```bash
+curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+helm version
+```
+
 ```bash
 aws --version
 kubectl version --client
@@ -47,18 +68,18 @@ You also need:
 Set environment variables used throughout the lab:
 
 ```bash
-export AWS_REGION=eu-north-1
-export CLUSTER_NAME=day20-eks-helm-scaling
+export AWS_REGION=us-east-1
+export CLUSTER_NAME=sunil-eks-helm-scaling
 export NODEGROUP_NAME=day20-managed-ng
 export APP_NAME=day20-web
 export NAMESPACE=day20
-export ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+export ACCOUNT_ID=$(aws sts get-caller-identity --query Account --profile devops --output text)
 ```
 
 Check your AWS identity:
 
 ```bash
-aws sts get-caller-identity
+aws sts get-caller-identity --profile devops
 ```
 
 Explanation:
@@ -72,16 +93,50 @@ This confirms that the AWS CLI is authenticated and shows which AWS account will
 Create an EKS cluster with one managed node group.
 
 ```bash
-export AWS_REGION=us-east-1
-export CLUSTER_NAME=sunil
+export VPC_ID=$(aws ec2 describe-vpcs \
+  --filters Name=isDefault,Values=true \
+  --region $AWS_REGION \
+  --profile $AWS_PROFILE \
+  --query 'Vpcs[0].VpcId' \
+  --output text)
+```
+```bash
+echo $VPC_ID
+```
+
+```bash
+export SUBNET_IDS=$(aws ec2 describe-subnets \
+  --filters Name=vpc-id,Values=$VPC_ID \
+            Name=availability-zone,Values=us-east-1a,us-east-1b \
+  --region $AWS_REGION \
+  --profile $AWS_PROFILE \
+  --query 'join(`,`, Subnets[*].SubnetId)' \
+  --output text)
+```
+```bash
+echo $SUBNET_IDS
+```
+```bash
 eksctl create cluster \
   --name $CLUSTER_NAME \
   --region $AWS_REGION \
-  --nodes 2 \
+  --vpc-public-subnets $SUBNET_IDS \
+  --nodes 1 \
   --nodes-min 1 \
   --nodes-max 4 \
   --nodegroup-name $NODEGROUP_NAME \
-  --managed
+  --managed \
+  --profile $AWS_PROFILE
+```
+
+
+```bash
+aws eks describe-cluster \
+  --name $CLUSTER_NAME \
+  --region us-east-1\
+  --profile devops\
+  --query 'cluster.{Name:name,Status:status,Version:version,Endpoint:endpoint}' \
+  --output table
 ```
 
 Explanation:
@@ -99,6 +154,7 @@ Verify cluster access:
 ```bash
 aws eks update-kubeconfig \
   --region $AWS_REGION \
+  --profile devops \
   --name $CLUSTER_NAME
 
 kubectl get nodes
@@ -201,6 +257,7 @@ Create an ECR repository:
 ```bash
 aws ecr create-repository \
   --repository-name $APP_NAME \
+  --profile devops \
   --region $AWS_REGION
 ```
 
@@ -209,9 +266,8 @@ If the repository already exists, continue with the next command.
 Authenticate Docker to ECR:
 
 ```bash
-aws ecr get-login-password --region $AWS_REGION | \
-  docker login --username AWS --password-stdin \
-  $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+aws ecr get-login-password --region ${AWS_REGION} --profile devops \
+  | docker login --username AWS --password-stdin ${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
 ```
 
 Build and push the image:
@@ -515,6 +571,13 @@ Install Metrics Server:
 ```bash
 kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
 ```
+## Incase if fails
+
+```bash 
+kubectl delete deployment metrics-server -n kube-system
+kubectl delete apiservice v1beta1.metrics.k8s.io
+kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+```
 
 Wait for it to become available:
 
@@ -623,6 +686,7 @@ aws eks describe-nodegroup \
   --nodegroup-name $NODEGROUP_NAME \
   --region $AWS_REGION \
   --query 'nodegroup.resources.autoScalingGroups[*].name' \
+  --profile devops \
   --output text
 ```
 
@@ -634,6 +698,7 @@ export ASG_NAME=$(aws eks describe-nodegroup \
   --nodegroup-name $NODEGROUP_NAME \
   --region $AWS_REGION \
   --query 'nodegroup.resources.autoScalingGroups[0].name' \
+  --profile devops \
   --output text)
 
 echo $ASG_NAME
@@ -645,6 +710,7 @@ Describe the ASG:
 aws autoscaling describe-auto-scaling-groups \
   --auto-scaling-group-names $ASG_NAME \
   --region $AWS_REGION \
+  --profile devops \
   --query 'AutoScalingGroups[0].{Min:MinSize,Desired:DesiredCapacity,Max:MaxSize,Instances:Instances[*].InstanceId}'
 ```
 
@@ -712,7 +778,8 @@ Create the IAM policy:
 ```bash
 aws iam create-policy \
   --policy-name Day20ClusterAutoscalerPolicy \
-  --policy-document file://cluster-autoscaler-policy.json
+  --policy-document file://cluster-autoscaler-policy.json \
+  --profile devops
 ```
 
 Create an IAM service account for Cluster Autoscaler:
@@ -724,7 +791,8 @@ eksctl create iamserviceaccount \
   --name cluster-autoscaler \
   --attach-policy-arn arn:aws:iam::$ACCOUNT_ID:policy/Day20ClusterAutoscalerPolicy \
   --approve \
-  --region $AWS_REGION
+  --region $AWS_REGION \
+  --profile devops
 ```
 
 Install Cluster Autoscaler using Helm:
@@ -802,7 +870,8 @@ Check Auto Scaling group desired capacity:
 aws autoscaling describe-auto-scaling-groups \
   --auto-scaling-group-names $ASG_NAME \
   --region $AWS_REGION \
-  --query 'AutoScalingGroups[0].{Min:MinSize,Desired:DesiredCapacity,Max:MaxSize}'
+  --query 'AutoScalingGroups[0].{Min:MinSize,Desired:DesiredCapacity,Max:MaxSize}' \
+  --profile devops
 ```
 
 Explanation:
@@ -902,6 +971,7 @@ Delete the ECR repository:
 aws ecr delete-repository \
   --repository-name $APP_NAME \
   --region $AWS_REGION \
+  --profile devops \
   --force
 ```
 
@@ -917,7 +987,8 @@ Optional: delete the IAM policy if it is no longer attached:
 
 ```bash
 aws iam delete-policy \
-  --policy-arn arn:aws:iam::$ACCOUNT_ID:policy/Day20ClusterAutoscalerPolicy
+  --policy-arn arn:aws:iam::$ACCOUNT_ID:policy/Day20ClusterAutoscalerPolicy \
+  --profile devops
 ```
 
 Explanation:
@@ -968,7 +1039,7 @@ Check:
 kubectl get pods -n $NAMESPACE
 kubectl describe pod <pending-pod-name> -n $NAMESPACE
 kubectl logs -n kube-system deployment/cluster-autoscaler --tail=100
-aws autoscaling describe-auto-scaling-groups --auto-scaling-group-names $ASG_NAME --region $AWS_REGION
+aws autoscaling describe-auto-scaling-groups --auto-scaling-group-names $ASG_NAME --region $AWS_REGION --profile devops
 ```
 
 Common causes:
