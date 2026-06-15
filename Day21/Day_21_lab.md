@@ -60,14 +60,14 @@ Run these commands before starting the lab.
 ```bash
 export AWS_REGION=us-east-1
 export AWS_PROFILE=devops
-export CLUSTER_NAME=day21-eks-cluster
+export CLUSTER_NAME=sunil-day21-eks-cluster
 export ARGOCD_NAMESPACE=argocd
-export APP_NAMESPACE=day21
-export APP_NAME=day21-nginx
-export CODECOMMIT_REPO_NAME=day21-gitops-app
-export ECR_REPO_NAME=day21-nginx
+export APP_NAMESPACE=sunil-day21
+export APP_NAME=sunil-day21-nginx
+export CODECOMMIT_REPO_NAME=sunil-day21-gitops-app
+export ECR_REPO_NAME=sunil-day21-nginx
 export IMAGE_TAG=v1
-export NODEGROUP_NAME=day21-managed-ng
+export NODEGROUP_NAME=sunil-day21-managed-ng
 export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --profile $AWS_PROFILE --query Account --output text)
 export ECR_IMAGE_URI=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO_NAME:$IMAGE_TAG
 
@@ -439,7 +439,7 @@ cd ..
 ```bash
 aws codecommit create-repository \
   --repository-name $CODECOMMIT_REPO_NAME \
-  --repository-description "Day 21 GitOps app manifests for ArgoCD on EKS" \
+  --repository-description " sunil Day 21 GitOps app manifests for ArgoCD on EKS" \
   --region $AWS_REGION \
   --profile $AWS_PROFILE
 ```
@@ -828,7 +828,7 @@ argocd version --client
 Make sure the port-forward command from Step 32 is still running.
 
 ```bash
-argocd login localhost:8080 \
+argocd login localhost:9090 \
   --username admin \
   --password $ARGOCD_ADMIN_PASSWORD \
   --insecure
@@ -1198,6 +1198,7 @@ docker build -t $ECR_REPO_NAME:$IMAGE_TAG .
 docker tag $ECR_REPO_NAME:$IMAGE_TAG $ECR_IMAGE_URI
 docker push $ECR_IMAGE_URI
 ```
+
 
 Description:
 
