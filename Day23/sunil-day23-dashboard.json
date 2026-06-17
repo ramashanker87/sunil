@@ -1,0 +1,30 @@
+{
+  "widgets": [
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 0,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "metrics": [
+          [ "sunil-Day23DevSecOps", "sunil-Day23ErrorCount" ]
+        ],
+        "period": 60,
+        "stat": "Sum",
+        "region": "us-east-1",
+        "title": "sunil-Day23 Application Error Count"
+      }
+    },
+    {
+      "type": "text",
+      "x": 0,
+      "y": 7,
+      "width": 12,
+      "height": 3,
+      "properties": {
+        "markdown": "# sunil-Day 23 DevSecOps Dashboard\nMonitoring application errors from CloudWatch Logs."
+      }
+    }
+  ]
+}
